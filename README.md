@@ -1,7 +1,7 @@
 # nlp-classification
 
 ## Preparation
- `pip3 install torch torchvision torchaudio torchtext torchdata`
+ `pip install -r requirements.txt`
 
 ## Train 
 

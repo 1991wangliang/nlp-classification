@@ -6,6 +6,7 @@
 import torch
 import torch.nn as nn
 import time
+import os
 from torchtext.models import RobertaClassificationHead, XLMR_BASE_ENCODER
 from torch.utils.data import DataLoader
 
@@ -18,7 +19,13 @@ text_transform = XLMR_BASE_ENCODER.transform()
 
 from torchtext.datasets import SST2
 
-batch_size = 16
+
+batch_size = 8
+
+# 0 negative
+# 1 positive
+num_classes = 16
+labels = ["negative", "positive"]
 
 train_datapipe = SST2(split='train')
 dev_datapipe = SST2(split='dev')
@@ -36,10 +43,6 @@ dev_datapipe = dev_datapipe.batch(batch_size)
 dev_datapipe = dev_datapipe.rows2columnar(["token_ids", "target"])
 dev_dataloader = DataLoader(dev_datapipe, batch_size=None)
 
-# 0 negative
-# 1 positive
-num_classes = 2
-labels = ["negative", "positive"]
 
 input_dim = 768
 
@@ -49,10 +52,10 @@ model = XLMR_BASE_ENCODER.get_model(head=classifier_head)
 # use multiple GPUs to train
 model = nn.DataParallel(model)
 model.to(DEVICE)
-# print(model)
 
 import torchtext.functional as F
 from torch.optim import AdamW
+
 
 learning_rate = 1e-5
 optim = AdamW(model.parameters(), lr=learning_rate)
@@ -113,13 +116,15 @@ def train(num_epochs=1):
         torch.save(model.state_dict(), 'Epoch[{}].pth'.format(e))
 
 
-# train num_epochs 10
-# train(10)
+if os.path.exists('best.pth'):
+    print('load best model.')
+    model.load_state_dict(torch.load('best.pth', map_location=DEVICE))
+    model.eval()
+else:
+    print('train num_epochs 10')
+    train(10)
 
-# load best model
-model.load_state_dict(torch.load('best.pth', map_location=DEVICE))
-model.eval()
-# print(model)
+print(model)
 
 # test model
 input_batch = ["the emotions are raw and will strike a nerve with anyone who 's ever had family trauma . "]
