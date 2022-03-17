@@ -22,6 +22,8 @@ batch_size = 16
 
 train_datapipe = SST2(split='train')
 dev_datapipe = SST2(split='dev')
+test_datapipe = SST2(split='test')
+
 
 # Transform the raw dataset using non-batched API (i.e apply transformation line by line)
 train_datapipe = train_datapipe.map(lambda x: (text_transform(x[0]), x[1]))
@@ -34,8 +36,11 @@ dev_datapipe = dev_datapipe.batch(batch_size)
 dev_datapipe = dev_datapipe.rows2columnar(["token_ids", "target"])
 dev_dataloader = DataLoader(dev_datapipe, batch_size=None)
 
-
+# 0 negative
+# 1 positive
 num_classes = 2
+labels = ["negative", "positive"]
+
 input_dim = 768
 
 classifier_head = RobertaClassificationHead(num_classes=num_classes, input_dim=input_dim)
@@ -109,12 +114,12 @@ def train(num_epochs=1):
 
 
 # train num_epochs 10
-train(10)
+# train(10)
 
 # load best model
 model.load_state_dict(torch.load('best.pth', map_location=DEVICE))
 model.eval()
-print(model)
+# print(model)
 
 # test model
 input_batch = ["the emotions are raw and will strike a nerve with anyone who 's ever had family trauma . "]
@@ -131,3 +136,12 @@ print(index)
 
 # assert result
 assert index == 1, 'train result was fail .'
+
+# test data
+for x in test_datapipe:
+    print("text:{}".format(x[0]))
+    model_input = F.to_tensor(text_transform([x[0]]), padding_value=padding_idx)
+    output = model(model_input)
+    output = softmax(output)
+    index = output.argmax(1)
+    print("text predict classification:{},score:{}".format(labels[int(index[0])], float(output[0][index])))
